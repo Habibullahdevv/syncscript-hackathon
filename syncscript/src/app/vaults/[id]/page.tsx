@@ -27,9 +27,17 @@ interface VaultUser {
   id: string;
   role: string;
   user: {
+    id: string;
     name: string;
     email: string;
   };
+}
+
+interface AuditLog {
+  id: string;
+  action: string;
+  details: string;
+  createdAt: string;
 }
 
 interface VaultData {
@@ -48,10 +56,18 @@ export default function VaultDetailPage() {
   const [vault, setVault] = useState<VaultData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'sources' | 'members' | 'audit'>('sources');
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
 
   useEffect(() => {
     fetchVaultData();
   }, [params.id]);
+
+  useEffect(() => {
+    if (activeTab === 'audit' && isOwner && auditLogs.length === 0) {
+      fetchAuditLogs();
+    }
+  }, [activeTab, isOwner]);
 
   const fetchVaultData = async () => {
     try {
@@ -66,6 +82,44 @@ export default function VaultDetailPage() {
       router.push('/dashboard');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    setIsLoadingAudit(true);
+    try {
+      const response = await fetch(`/api/vaults/${params.id}/audit`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch audit logs');
+      }
+      const data = await response.json();
+      setAuditLogs(data.auditLogs);
+    } catch (error) {
+      toast.error('Failed to load audit logs');
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  };
+
+  const changeUserRole = async (userId: string, newRole: string) => {
+    try {
+      const response = await fetch(`/api/vaults/${params.id}/members/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to change role');
+      }
+
+      toast.success('Role updated successfully');
+      fetchVaultData(); // Refresh vault data
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to change role');
     }
   };
 
@@ -259,7 +313,21 @@ export default function VaultDetailPage() {
                     <p className="font-medium">{vaultUser.user.name}</p>
                     <p className="text-sm text-gray-500">{vaultUser.user.email}</p>
                   </div>
-                  <Badge>{vaultUser.role}</Badge>
+                  <div className="flex items-center gap-3">
+                    {isOwner && vaultUser.user.id !== session?.user?.id ? (
+                      <select
+                        value={vaultUser.role}
+                        onChange={(e) => changeUserRole(vaultUser.user.id, e.target.value)}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="owner">Owner</option>
+                        <option value="contributor">Contributor</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                    ) : (
+                      <Badge>{vaultUser.role}</Badge>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -267,11 +335,37 @@ export default function VaultDetailPage() {
         )}
 
         {activeTab === 'audit' && isOwner && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-gray-500">Audit log feature coming soon</p>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            {isLoadingAudit ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-gray-500">Loading audit logs...</p>
+                </CardContent>
+              </Card>
+            ) : auditLogs.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-gray-500">No audit logs yet</p>
+                </CardContent>
+              </Card>
+            ) : (
+              auditLogs.map((log) => (
+                <Card key={log.id}>
+                  <CardContent className="py-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-sm">{log.action.replace(/_/g, ' ')}</p>
+                        <p className="text-sm text-gray-600 mt-1">{log.details}</p>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         )}
       </div>
     </div>
