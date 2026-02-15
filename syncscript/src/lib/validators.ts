@@ -8,6 +8,7 @@ export const createVaultSchema = z.object({
     .string()
     .min(1, 'Vault name is required')
     .max(255, 'Vault name must be less than 255 characters'),
+  description: z.string().optional(),
 });
 
 /**

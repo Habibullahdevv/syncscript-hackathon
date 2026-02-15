@@ -1,15 +1,9 @@
 import { NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import {
-  extractAuthHeaders,
-  validateRole,
-  checkPermission,
-} from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { getAuthUser, checkPermission } from '@/lib/auth-session';
 import { successResponse, errorResponse } from '@/lib/responses';
 import { updateVaultSchema } from '@/lib/validators';
 import { ZodError } from 'zod';
-
-const prisma = new PrismaClient();
 
 /**
  * GET /api/vaults/[id]
@@ -20,33 +14,41 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
-    }
-
-    // Find vault by ID with sources
+    // Find vault by ID with sources and vault users
     const vault = await prisma.vault.findUnique({
       where: {
         id: params.id,
       },
       include: {
         sources: {
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
           orderBy: {
             createdAt: 'desc',
+          },
+        },
+        vaultUsers: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -56,7 +58,19 @@ export async function GET(
       return errorResponse('NOT_FOUND', 'Vault not found', 404);
     }
 
-    return successResponse(vault);
+    // Check if user has access to this vault
+    const userAccess = vault.vaultUsers.find(vu => vu.userId === auth.userId);
+    if (!userAccess) {
+      return errorResponse('FORBIDDEN', 'You do not have access to this vault', 403);
+    }
+
+    // Add user's role to the response
+    const vaultWithRole = {
+      ...vault,
+      userRole: userAccess.role,
+    };
+
+    return successResponse({ vault: vaultWithRole });
   } catch (error) {
     console.error('Error fetching vault:', error);
     return errorResponse(
@@ -76,22 +90,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
-    }
-
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
     // Check permission
@@ -117,7 +119,7 @@ export async function PATCH(
       },
     });
 
-    return successResponse(vault);
+    return successResponse({ vault });
   } catch (error) {
     if (error instanceof ZodError) {
       return errorResponse(
@@ -150,22 +152,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
-    }
-
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
     // Check permission

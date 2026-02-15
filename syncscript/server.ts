@@ -1,9 +1,10 @@
+import 'dotenv/config';
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { getToken } from 'next-auth/jwt';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './src/lib/prisma';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -11,7 +12,6 @@ const port = 3000;
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
-const prisma = new PrismaClient();
 
 // Export Socket.io instance for use in API routes
 let io: SocketIOServer | null = null;
@@ -25,12 +25,10 @@ export function getIO(): SocketIOServer {
 
 // Extend Socket.io socket data interface
 declare module 'socket.io' {
-  interface Socket {
-    data: {
-      userId: string;
-      userRole: string;
-      userEmail: string;
-    };
+  interface SocketData {
+    userId: string;
+    userRole: string;
+    userEmail: string;
   }
 }
 
@@ -96,9 +94,9 @@ app.prepare().then(() => {
         // Verify VaultUser membership
         const vaultUser = await prisma.vaultUser.findUnique({
           where: {
-            vaultId_userId: {
-              vaultId: vaultId,
+            userId_vaultId: {
               userId: socket.data.userId,
+              vaultId: vaultId,
             },
           },
         });

@@ -1,16 +1,10 @@
 import { NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import {
-  extractAuthHeaders,
-  validateRole,
-  checkPermission,
-} from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { getAuthUser, checkPermission } from '@/lib/auth-session';
 import { successResponse, errorResponse } from '@/lib/responses';
 import { createSourceSchema } from '@/lib/validators';
 import { ZodError } from 'zod';
-import { getSocketIO } from '@/lib/socket';
-
-const prisma = new PrismaClient();
+import { getIO } from '@/../../server';
 
 /**
  * POST /api/vaults/[id]/sources
@@ -21,22 +15,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
-    }
-
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
     // Check permission
@@ -67,48 +49,57 @@ export async function POST(
         vaultId: params.id,
         title: validatedData.title,
         url: validatedData.url,
+        content: validatedData.content,
+        tags: validatedData.tags || [],
         annotation: validatedData.annotation,
         fileUrl: validatedData.fileUrl,
         fileKey: validatedData.fileKey,
         fileSize: validatedData.fileSize,
+        createdById: auth.userId,
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create audit log entry
+    await prisma.auditLog.create({
+      data: {
+        userId: auth.userId,
+        vaultId: params.id,
+        action: 'SOURCE_ADDED',
+        details: `${auth.name} added source: ${source.title}`,
       },
     });
 
     // Emit real-time event to vault room
     try {
-      const io = getSocketIO();
-
-      // Fetch user name for actor info
-      const user = await prisma.user.findUnique({
-        where: { id: auth.userId },
-        select: { name: true },
-      });
+      const io = getIO();
 
       // Broadcast source:created event to all clients in vault room
       io.to(`vault:${params.id}`).emit('source:created', {
+        vaultId: params.id,
         source: {
           id: source.id,
           title: source.title,
-          fileUrl: source.fileUrl || '',
-          fileKey: source.fileKey,
-          fileSize: source.fileSize,
-          mimeType: 'application/pdf',
-          vaultId: source.vaultId,
-          createdAt: source.createdAt.toISOString(),
         },
         actor: {
-          userId: auth.userId,
-          userName: user?.name || 'Unknown User',
-          role: auth.role,
+          name: auth.name,
+          email: auth.email,
         },
-        timestamp: new Date().toISOString(),
       });
     } catch (socketError) {
       // Log but don't fail the request if Socket.io emission fails
       console.error('Failed to emit source:created event:', socketError);
     }
 
-    return successResponse(source, 201);
+    return successResponse({ source }, 201);
   } catch (error) {
     if (error instanceof ZodError) {
       return errorResponse(
@@ -136,22 +127,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
-    }
-
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
     // Verify vault exists
@@ -173,7 +152,19 @@ export async function GET(
       },
     });
 
-    return successResponse(sources);
+    // Transform to match frontend interface
+    const transformedSources = sources.map((source) => ({
+      id: source.id,
+      vaultId: source.vaultId,
+      title: source.title,
+      fileUrl: source.fileUrl || '',
+      fileSize: source.fileSize || 0,
+      uploadedBy: 'User',
+      createdAt: source.createdAt.toISOString(),
+      updatedAt: source.createdAt.toISOString(),
+    }));
+
+    return successResponse({ sources: transformedSources });
   } catch (error) {
     console.error('Error fetching sources:', error);
     return errorResponse(

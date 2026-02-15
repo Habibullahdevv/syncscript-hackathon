@@ -43,7 +43,13 @@
       "Bash(git --version)",
       "Bash(git add .)",
       "Bash(git commit:*)",
-      "Bash(git add .claude/settings.local.json)"
+      "Bash(git add .claude/settings.local.json)",
+      "Bash(openssl rand:*)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"yes, reset the database\" npx prisma migrate reset --force)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(git add:*)"
     ]
   }
 }

@@ -1,15 +1,9 @@
 import { NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import {
-  extractAuthHeaders,
-  validateRole,
-  checkPermission,
-} from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { getAuthUser, checkPermission } from '@/lib/auth-session';
 import { successResponse, errorResponse } from '@/lib/responses';
 import { createVaultSchema } from '@/lib/validators';
 import { ZodError } from 'zod';
-
-const prisma = new PrismaClient();
 
 /**
  * POST /api/vaults
@@ -17,22 +11,10 @@ const prisma = new PrismaClient();
  */
 export async function POST(request: NextRequest) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
-    }
-
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
     // Check permission
@@ -81,22 +63,10 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
-    }
-
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
     // Query vaults owned by user
@@ -104,12 +74,38 @@ export async function GET(request: NextRequest) {
       where: {
         ownerId: auth.userId,
       },
+      include: {
+        sources: {
+          select: {
+            id: true,
+          },
+        },
+        vaultUsers: {
+          where: {
+            userId: auth.userId,
+          },
+          select: {
+            role: true,
+          },
+        },
+      },
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    return successResponse(vaults);
+    // Transform to match frontend interface
+    const transformedVaults = vaults.map((vault) => ({
+      id: vault.id,
+      title: vault.name,
+      description: '',
+      sourceCount: vault.sources.length,
+      userRole: vault.vaultUsers[0]?.role || 'owner',
+      createdAt: vault.createdAt.toISOString(),
+      updatedAt: vault.updatedAt.toISOString(),
+    }));
+
+    return successResponse({ vaults: transformedVaults });
   } catch (error) {
     console.error('Error fetching vaults:', error);
     return errorResponse(

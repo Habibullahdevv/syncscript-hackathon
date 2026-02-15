@@ -1,14 +1,8 @@
 import { NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import {
-  extractAuthHeaders,
-  validateRole,
-  checkPermission,
-} from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { getAuthUser, checkPermission } from '@/lib/auth-session';
 import { successResponse, errorResponse } from '@/lib/responses';
-import { getSocketIO } from '@/lib/socket';
-
-const prisma = new PrismaClient();
+import { getIO } from '@/../../server';
 
 /**
  * DELETE /api/vaults/[id]/sources/[sourceId]
@@ -19,22 +13,10 @@ export async function DELETE(
   { params }: { params: { id: string; sourceId: string } }
 ) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
-    }
-
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
     // Check permission
@@ -70,24 +52,16 @@ export async function DELETE(
 
     // Emit real-time event to vault room
     try {
-      const io = getSocketIO();
-
-      // Fetch user name for actor info
-      const user = await prisma.user.findUnique({
-        where: { id: auth.userId },
-        select: { name: true },
-      });
+      const io = getIO();
 
       // Broadcast source:deleted event to all clients in vault room
       io.to(`vault:${params.id}`).emit('source:deleted', {
-        sourceId: params.sourceId,
         vaultId: params.id,
+        sourceId: params.sourceId,
         actor: {
-          userId: auth.userId,
-          userName: user?.name || 'Unknown User',
-          role: auth.role,
+          name: auth.name,
+          email: auth.email,
         },
-        timestamp: new Date().toISOString(),
       });
     } catch (socketError) {
       // Log but don't fail the request if Socket.io emission fails

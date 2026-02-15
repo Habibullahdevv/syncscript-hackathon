@@ -1,9 +1,5 @@
 import { NextRequest } from 'next/server';
-import {
-  extractAuthHeaders,
-  validateRole,
-  checkPermission,
-} from '@/lib/auth';
+import { getAuthUser, checkPermission } from '@/lib/auth-session';
 import { successResponse, errorResponse } from '@/lib/responses';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 
@@ -13,22 +9,10 @@ import { uploadToCloudinary } from '@/lib/cloudinary';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Extract and validate auth headers
-    const auth = extractAuthHeaders(request);
+    // Get authenticated user from session
+    const auth = await getAuthUser();
     if (!auth) {
-      return errorResponse(
-        'UNAUTHORIZED',
-        'Missing authentication headers (x-user-id, x-user-role)',
-        401
-      );
-    }
-
-    if (!validateRole(auth.role)) {
-      return errorResponse(
-        'FORBIDDEN',
-        'Invalid role. Must be owner, contributor, or viewer',
-        403
-      );
+      return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
     // Check permission
