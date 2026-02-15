@@ -1,0 +1,325 @@
+openapi: 3.0.0
+info:
+  title: Source Management API
+  version: 1.0.0
+  description: RESTful API endpoints for source CRUD operations within vaults
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+
+security:
+  - MockAuth: []
+
+paths:
+  /vaults/{vaultId}/sources:
+    post:
+      summary: Add source to vault
+      description: Creates a new source within a vault (owner and contributor roles)
+      operationId: createSource
+      tags:
+        - Sources
+      security:
+        - MockAuth: [owner, contributor]
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  example: "Machine Learning Research Paper"
+                url:
+                  type: string
+                  format: uri
+                  example: "https://arxiv.org/abs/2024.12345"
+                annotation:
+                  type: string
+                  example: "Key findings on neural network optimization"
+                fileUrl:
+                  type: string
+                  format: uri
+                  example: "https://res.cloudinary.com/demo/raw/upload/v1234567890/paper.pdf"
+                fileKey:
+                  type: string
+                  example: "v1234567890/paper"
+                fileSize:
+                  type: integer
+                  minimum: 0
+                  example: 2048576
+            examples:
+              url_source:
+                value:
+                  title: "Research Paper"
+                  url: "https://arxiv.org/abs/2024.12345"
+              file_source:
+                value:
+                  title: "Uploaded PDF"
+                  fileUrl: "https://res.cloudinary.com/demo/raw/upload/v1234567890/paper.pdf"
+                  fileKey: "v1234567890/paper"
+                  fileSize: 2048576
+              annotation_source:
+                value:
+                  title: "Personal Notes"
+                  annotation: "Key insights from team meeting"
+      responses:
+        '201':
+          description: Source created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      id: "clx3c4d5e6f7g8h9i0j1k2l3"
+                      vaultId: "clx1a2b3c4d5e6f7g8h9i0j1"
+                      title: "Machine Learning Paper"
+                      url: "https://arxiv.org/abs/2024.12345"
+                      annotation: null
+                      fileUrl: null
+                      fileKey: null
+                      fileSize: null
+                      mimeType: "application/pdf"
+                      createdAt: "2026-02-15T11:00:00.000Z"
+                    error: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/VaultNotFound'
+
+    get:
+      summary: List vault sources
+      description: Retrieves all sources within a vault (all roles)
+      operationId: listSources
+      tags:
+        - Sources
+      security:
+        - MockAuth: [owner, contributor, viewer]
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      responses:
+        '200':
+          description: Sources retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      - id: "clx3c4d5e6f7g8h9i0j1k2l3"
+                        vaultId: "clx1a2b3c4d5e6f7g8h9i0j1"
+                        title: "Research Paper"
+                        url: "https://arxiv.org/abs/2024.12345"
+                        annotation: null
+                        fileUrl: null
+                        createdAt: "2026-02-15T11:00:00.000Z"
+                      - id: "clx4d5e6f7g8h9i0j1k2l3m4"
+                        vaultId: "clx1a2b3c4d5e6f7g8h9i0j1"
+                        title: "Meeting Notes"
+                        url: null
+                        annotation: "Key discussion points"
+                        fileUrl: null
+                        createdAt: "2026-02-15T10:45:00.000Z"
+                    error: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/VaultNotFound'
+
+  /vaults/{vaultId}/sources/{sourceId}:
+    delete:
+      summary: Delete source
+      description: Removes a source from a vault (owner role only)
+      operationId: deleteSource
+      tags:
+        - Sources
+      security:
+        - MockAuth: [owner]
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: Source deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      message: "Source deleted successfully"
+                    error: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/SourceNotFound'
+
+components:
+  securitySchemes:
+    MockAuth:
+      type: apiKey
+      in: header
+      name: x-user-id
+      description: Mock authentication via request headers (x-user-id and x-user-role)
+
+  parameters:
+    VaultId:
+      name: vaultId
+      in: path
+      required: true
+      description: Unique vault identifier (cuid)
+      schema:
+        type: string
+        example: "clx1a2b3c4d5e6f7g8h9i0j1"
+
+    SourceId:
+      name: sourceId
+      in: path
+      required: true
+      description: Unique source identifier (cuid)
+      schema:
+        type: string
+        example: "clx3c4d5e6f7g8h9i0j1k2l3"
+
+  schemas:
+    SuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - error
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          description: Response payload (varies by endpoint)
+        error:
+          type: 'null'
+          example: null
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - data
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          type: 'null'
+          example: null
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum: [UNAUTHORIZED, FORBIDDEN, INVALID_INPUT, NOT_FOUND, SERVER_ERROR]
+            message:
+              type: string
+              description: Human-readable error message
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication headers
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_headers:
+              value:
+                success: false
+                data: null
+                error:
+                  code: "UNAUTHORIZED"
+                  message: "Missing authentication headers (x-user-id, x-user-role)"
+
+    Forbidden:
+      description: Insufficient permissions for requested action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            insufficient_role:
+              value:
+                success: false
+                data: null
+                error:
+                  code: "FORBIDDEN"
+                  message: "Insufficient permissions. Owner or contributor role required."
+
+    ValidationError:
+      description: Invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_field:
+              value:
+                success: false
+                data: null
+                error:
+                  code: "INVALID_INPUT"
+                  message: "Validation failed: title is required"
+
+    VaultNotFound:
+      description: Vault not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            not_found:
+              value:
+                success: false
+                data: null
+                error:
+                  code: "NOT_FOUND"
+                  message: "Vault not found"
+
+    SourceNotFound:
+      description: Source not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            not_found:
+              value:
+                success: false
+                data: null
+                error:
+                  code: "NOT_FOUND"
+                  message: "Source not found"

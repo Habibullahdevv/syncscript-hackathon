@@ -1,0 +1,200 @@
+openapi: 3.0.0
+info:
+  title: Upload API
+  version: 1.0.0
+  description: Cloudinary PDF upload endpoint with file validation
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+
+security:
+  - MockAuth: []
+
+paths:
+  /upload:
+    post:
+      summary: Upload PDF file
+      description: Uploads PDF file to Cloudinary and returns secure URL (owner and contributor roles)
+      operationId: uploadFile
+      tags:
+        - Upload
+      security:
+        - MockAuth: [owner, contributor]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF file to upload (max 10MB)
+            examples:
+              valid_pdf:
+                summary: Valid PDF file
+                value:
+                  file: "(binary PDF data)"
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      url: "https://res.cloudinary.com/demo/raw/upload/v1708012345/research-paper.pdf"
+                      publicId: "v1708012345/research-paper"
+                      fileSize: 2048576
+                      mimeType: "application/pdf"
+                    error: null
+        '400':
+          description: Invalid file type or size
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_type:
+                  value:
+                    success: false
+                    data: null
+                    error:
+                      code: "INVALID_INPUT"
+                      message: "Only PDF files are allowed"
+                file_too_large:
+                  value:
+                    success: false
+                    data: null
+                    error:
+                      code: "INVALID_INPUT"
+                      message: "File size exceeds 10MB limit"
+                missing_file:
+                  value:
+                    success: false
+                    data: null
+                    error:
+                      code: "INVALID_INPUT"
+                      message: "No file provided"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          description: Upload failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                upload_failed:
+                  value:
+                    success: false
+                    data: null
+                    error:
+                      code: "SERVER_ERROR"
+                      message: "File upload failed. Please try again."
+
+components:
+  securitySchemes:
+    MockAuth:
+      type: apiKey
+      in: header
+      name: x-user-id
+      description: Mock authentication via request headers (x-user-id and x-user-role)
+
+  schemas:
+    SuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - error
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+              description: Cloudinary secure URL for uploaded file
+            publicId:
+              type: string
+              description: Cloudinary public ID for file management
+            fileSize:
+              type: integer
+              description: File size in bytes
+            mimeType:
+              type: string
+              description: File MIME type
+        error:
+          type: 'null'
+          example: null
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - data
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          type: 'null'
+          example: null
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum: [UNAUTHORIZED, FORBIDDEN, INVALID_INPUT, SERVER_ERROR]
+            message:
+              type: string
+              description: Human-readable error message
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication headers
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_headers:
+              value:
+                success: false
+                data: null
+                error:
+                  code: "UNAUTHORIZED"
+                  message: "Missing authentication headers (x-user-id, x-user-role)"
+
+    Forbidden:
+      description: Insufficient permissions for requested action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            insufficient_role:
+              value:
+                success: false
+                data: null
+                error:
+                  code: "FORBIDDEN"
+                  message: "Insufficient permissions. Owner or contributor role required."

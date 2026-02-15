@@ -1,0 +1,307 @@
+openapi: 3.0.0
+info:
+  title: SyncScript Authentication API
+  description: NextAuth.js authentication endpoints for Phase 3 - Authentication & Role-Based Access Control
+  version: 1.0.0
+  contact:
+    name: SyncScript Team
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://syncscript.vercel.app
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+
+paths:
+  /api/auth/callback/credentials:
+    post:
+      tags:
+        - Authentication
+      summary: Login with credentials
+      description: Authenticate user with email and password, create session
+      operationId: loginCredentials
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - csrfToken
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: owner@demo.com
+                  description: User's email address
+                password:
+                  type: string
+                  format: password
+                  example: owner123
+                  description: User's password (plaintext, will be hashed)
+                csrfToken:
+                  type: string
+                  description: CSRF token from /api/auth/csrf
+                callbackUrl:
+                  type: string
+                  example: /dashboard
+                  description: URL to redirect after successful login
+                json:
+                  type: boolean
+                  example: true
+                  description: Return JSON response instead of redirect
+      responses:
+        '200':
+          description: Login successful (JSON response)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: /dashboard
+                    description: Redirect URL
+        '302':
+          description: Login successful (redirect)
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /dashboard
+            Set-Cookie:
+              schema:
+                type: string
+                example: next-auth.session-token=eyJhbGc...; Path=/; HttpOnly; SameSite=Lax
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: CredentialsSignin
+                status: 401
+                ok: false
+
+  /api/auth/session:
+    get:
+      tags:
+        - Authentication
+      summary: Get current session
+      description: Retrieve current user session information
+      operationId: getSession
+      parameters:
+        - in: cookie
+          name: next-auth.session-token
+          required: false
+          schema:
+            type: string
+          description: Session token cookie
+      responses:
+        '200':
+          description: Session retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Session'
+                  - type: object
+                    properties: {}
+                    description: Empty object if no session
+              examples:
+                authenticated:
+                  value:
+                    user:
+                      id: clrx1y2z3000008l5a1b2c3d4
+                      email: owner@demo.com
+                      name: Demo Owner
+                      role: owner
+                    expires: '2026-02-16T12:00:00.000Z'
+                unauthenticated:
+                  value: {}
+
+  /api/auth/signout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout
+      description: Destroy current session and logout user
+      operationId: signout
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - csrfToken
+              properties:
+                csrfToken:
+                  type: string
+                  description: CSRF token from /api/auth/csrf
+                callbackUrl:
+                  type: string
+                  example: /login
+                  description: URL to redirect after logout
+                json:
+                  type: boolean
+                  example: true
+                  description: Return JSON response instead of redirect
+      responses:
+        '200':
+          description: Logout successful (JSON response)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: /login
+        '302':
+          description: Logout successful (redirect)
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /login
+            Set-Cookie:
+              schema:
+                type: string
+                example: next-auth.session-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT
+
+  /api/auth/csrf:
+    get:
+      tags:
+        - Authentication
+      summary: Get CSRF token
+      description: Retrieve CSRF token for form submissions
+      operationId: getCsrfToken
+      responses:
+        '200':
+          description: CSRF token retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  csrfToken:
+                    type: string
+                    example: abc123def456
+                    description: CSRF token for form submissions
+
+  /api/auth/providers:
+    get:
+      tags:
+        - Authentication
+      summary: Get authentication providers
+      description: List available authentication providers
+      operationId: getProviders
+      responses:
+        '200':
+          description: Providers retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credentials:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: credentials
+                      name:
+                        type: string
+                        example: Credentials
+                      type:
+                        type: string
+                        example: credentials
+                      signinUrl:
+                        type: string
+                        example: /api/auth/signin/credentials
+                      callbackUrl:
+                        type: string
+                        example: /api/auth/callback/credentials
+
+components:
+  schemas:
+    Session:
+      type: object
+      required:
+        - user
+        - expires
+      properties:
+        user:
+          $ref: '#/components/schemas/SessionUser'
+        expires:
+          type: string
+          format: date-time
+          example: '2026-02-16T12:00:00.000Z'
+          description: Session expiry timestamp (ISO 8601)
+
+    SessionUser:
+      type: object
+      required:
+        - id
+        - email
+        - role
+      properties:
+        id:
+          type: string
+          example: clrx1y2z3000008l5a1b2c3d4
+          description: User ID (cuid)
+        email:
+          type: string
+          format: email
+          example: owner@demo.com
+          description: User's email address
+        name:
+          type: string
+          example: Demo Owner
+          description: User's display name
+        role:
+          type: string
+          enum:
+            - owner
+            - contributor
+            - viewer
+          example: owner
+          description: User's role
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: CredentialsSignin
+          description: Error code
+        status:
+          type: integer
+          example: 401
+          description: HTTP status code
+        ok:
+          type: boolean
+          example: false
+          description: Success flag
+
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: Session token stored in HTTP-only cookie
+
+security:
+  - cookieAuth: []
+
+externalDocs:
+  description: NextAuth.js Documentation
+  url: https://next-auth.js.org/

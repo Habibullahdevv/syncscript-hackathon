@@ -1,0 +1,390 @@
+{
+  "info": {
+    "name": "Backend APIs - Phase 2",
+    "description": "RESTful API endpoints for vault and source management with Cloudinary PDF uploads",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Vaults",
+      "item": [
+        {
+          "name": "Create Vault",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "owner",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Vault\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/vaults",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Vaults",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "owner",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/vaults",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Vault",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "owner",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/vaults/{{vault_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults", "{{vault_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Vault",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "owner",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Vault Name\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/vaults/{{vault_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults", "{{vault_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Vault",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "owner",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/vaults/{{vault_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults", "{{vault_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sources",
+      "item": [
+        {
+          "name": "Add Source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "contributor",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Research Paper\",\n  \"url\": \"https://arxiv.org/abs/2024.12345\",\n  \"annotation\": \"Important findings on ML optimization\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/vaults/{{vault_id}}/sources",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults", "{{vault_id}}", "sources"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Sources",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "viewer",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/vaults/{{vault_id}}/sources",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults", "{{vault_id}}", "sources"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Source",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "owner",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/vaults/{{vault_id}}/sources/{{source_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults", "{{vault_id}}", "sources", "{{source_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Upload",
+      "item": [
+        {
+          "name": "Upload PDF",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "contributor",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "upload"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Role Enforcement Tests",
+      "item": [
+        {
+          "name": "Viewer Cannot Create Vault (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "viewer",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Unauthorized Vault\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/vaults",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Missing Headers (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/vaults",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Validation Tests",
+      "item": [
+        {
+          "name": "Missing Required Field (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "owner",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Missing name field\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/vaults",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Vault ID (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-user-id",
+                "value": "{{x_user_id}}",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "owner",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/vaults/invalid-id-12345",
+              "host": ["{{base_url}}"],
+              "path": ["api", "vaults", "invalid-id-12345"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

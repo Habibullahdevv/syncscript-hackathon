@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User model - Authentication identity and profile data
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String?
+  passwordHash String
+  role         String      @default("viewer")
+  vaultUsers   VaultUser[]
+  createdAt    DateTime    @default(now())
+}
+
+// Vault model - Container for sources, owned by users
+model Vault {
+  id         String      @id @default(cuid())
+  name       String
+  ownerId    String
+  vaultUsers VaultUser[]
+  sources    Source[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+// VaultUser model - Junction table for many-to-many User ↔ Vault with roles
+model VaultUser {
+  id      String @id @default(cuid())
+  userId  String
+  vaultId String
+  role    String @default("viewer")
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vault   Vault  @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vaultId])
+  @@index([vaultId])
+}
+
+// Source model - Research source (PDF, URL, or annotation) within a vault
+model Source {
+  id         String   @id @default(cuid())
+  vaultId    String
+  title      String
+  url        String?
+  annotation String?
+  fileUrl    String?
+  fileKey    String?
+  fileSize   Int?
+  mimeType   String   @default("application/pdf")
+  vault      Vault    @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([vaultId])
+}
+
+// AuditLog model - Immutable event log for all database mutations
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  vaultId   String?
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
