@@ -36,7 +36,7 @@ interface VaultData {
   id: string;
   name: string;
   description?: string;
-  userRole: string;
+  userRole: 'owner' | 'contributor' | 'viewer';
   sources: Source[];
   vaultUsers: VaultUser[];
 }

@@ -52,7 +52,8 @@
       "Bash(git add:*)",
       "Bash(git branch -M main)",
       "Bash(git remote:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npx tsc --noEmit)"
     ]
   }
 }

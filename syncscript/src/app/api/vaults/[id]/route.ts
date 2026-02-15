@@ -11,9 +11,12 @@ import { ZodError } from 'zod';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const { id } = await params;
+
     // Get authenticated user from session
     const auth = await getAuthUser();
     if (!auth) {
@@ -23,7 +26,7 @@ export async function GET(
     // Find vault by ID with sources and vault users
     const vault = await prisma.vault.findUnique({
       where: {
-        id: params.id,
+        id: id,
       },
       include: {
         sources: {
@@ -87,9 +90,12 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const { id } = await params;
+
     // Get authenticated user from session
     const auth = await getAuthUser();
     if (!auth) {
@@ -112,7 +118,7 @@ export async function PATCH(
     // Update vault in database
     const vault = await prisma.vault.update({
       where: {
-        id: params.id,
+        id: id,
       },
       data: {
         name: validatedData.name,
@@ -149,9 +155,12 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const { id } = await params;
+
     // Get authenticated user from session
     const auth = await getAuthUser();
     if (!auth) {
@@ -170,7 +179,7 @@ export async function DELETE(
     // Delete vault (cascade deletes sources automatically)
     await prisma.vault.delete({
       where: {
-        id: params.id,
+        id: id,
       },
     });
 

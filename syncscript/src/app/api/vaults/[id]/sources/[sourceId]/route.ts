@@ -10,9 +10,12 @@ import { getIO } from '@/../../server';
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; sourceId: string } }
+  { params }: { params: Promise<{ id: string; sourceId: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const { id, sourceId } = await params;
+
     // Get authenticated user from session
     const auth = await getAuthUser();
     if (!auth) {
@@ -30,14 +33,14 @@ export async function DELETE(
 
     // Verify source exists and belongs to the vault
     const source = await prisma.source.findUnique({
-      where: { id: params.sourceId },
+      where: { id: sourceId },
     });
 
     if (!source) {
       return errorResponse('NOT_FOUND', 'Source not found', 404);
     }
 
-    if (source.vaultId !== params.id) {
+    if (source.vaultId !== id) {
       return errorResponse(
         'NOT_FOUND',
         'Source not found in this vault',
@@ -47,7 +50,7 @@ export async function DELETE(
 
     // Delete source
     await prisma.source.delete({
-      where: { id: params.sourceId },
+      where: { id: sourceId },
     });
 
     // Emit real-time event to vault room
@@ -55,9 +58,9 @@ export async function DELETE(
       const io = getIO();
 
       // Broadcast source:deleted event to all clients in vault room
-      io.to(`vault:${params.id}`).emit('source:deleted', {
-        vaultId: params.id,
-        sourceId: params.sourceId,
+      io.to(`vault:${id}`).emit('source:deleted', {
+        vaultId: id,
+        sourceId: sourceId,
         actor: {
           name: auth.name,
           email: auth.email,

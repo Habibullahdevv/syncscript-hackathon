@@ -19,9 +19,9 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validation = signupSchema.safeParse(body);
     if (!validation.success) {
-      console.log('❌ Validation failed:', validation.error.errors);
+      console.log('❌ Validation failed:', validation.error.issues);
       return NextResponse.json(
-        { error: validation.error.errors[0].message },
+        { error: validation.error.issues[0].message },
         { status: 400 }
       );
     }

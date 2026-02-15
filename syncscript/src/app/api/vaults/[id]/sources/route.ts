@@ -12,9 +12,12 @@ import { getIO } from '@/../../server';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const { id } = await params;
+
     // Get authenticated user from session
     const auth = await getAuthUser();
     if (!auth) {
@@ -32,7 +35,7 @@ export async function POST(
 
     // Verify vault exists
     const vault = await prisma.vault.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!vault) {
@@ -46,7 +49,7 @@ export async function POST(
     // Create source in database
     const source = await prisma.source.create({
       data: {
-        vaultId: params.id,
+        vaultId: id,
         title: validatedData.title,
         url: validatedData.url,
         content: validatedData.content,
@@ -72,7 +75,7 @@ export async function POST(
     await prisma.auditLog.create({
       data: {
         userId: auth.userId,
-        vaultId: params.id,
+        vaultId: id,
         action: 'SOURCE_ADDED',
         details: `${auth.name} added source: ${source.title}`,
       },
@@ -83,8 +86,8 @@ export async function POST(
       const io = getIO();
 
       // Broadcast source:created event to all clients in vault room
-      io.to(`vault:${params.id}`).emit('source:created', {
-        vaultId: params.id,
+      io.to(`vault:${id}`).emit('source:created', {
+        vaultId: id,
         source: {
           id: source.id,
           title: source.title,
@@ -124,9 +127,12 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const { id } = await params;
+
     // Get authenticated user from session
     const auth = await getAuthUser();
     if (!auth) {
@@ -135,7 +141,7 @@ export async function GET(
 
     // Verify vault exists
     const vault = await prisma.vault.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!vault) {
@@ -145,7 +151,7 @@ export async function GET(
     // Query sources in vault
     const sources = await prisma.source.findMany({
       where: {
-        vaultId: params.id,
+        vaultId: id,
       },
       orderBy: {
         createdAt: 'desc',

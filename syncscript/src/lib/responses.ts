@@ -24,7 +24,10 @@ export type ErrorCode =
   | 'FORBIDDEN'
   | 'INVALID_INPUT'
   | 'NOT_FOUND'
-  | 'SERVER_ERROR';
+  | 'SERVER_ERROR'
+  | 'EXPIRED'
+  | 'USED'
+  | 'ALREADY_MEMBER';
 
 /**
  * Standardized error response format
@@ -59,4 +62,7 @@ export const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
   INVALID_INPUT: 400,
   NOT_FOUND: 404,
   SERVER_ERROR: 500,
+  EXPIRED: 410,
+  USED: 410,
+  ALREADY_MEMBER: 400,
 };
