@@ -30,15 +30,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createVaultSchema.parse(body);
 
-    // Create vault in database
+    // Create vault in database with VaultUser relationship
     const vault = await prisma.vault.create({
       data: {
         name: validatedData.name,
+        description: validatedData.description,
         ownerId: auth.userId,
+        vaultUsers: {
+          create: {
+            userId: auth.userId,
+            role: 'owner',
+          },
+        },
       },
     });
 
-    return successResponse(vault, 201);
+    // Create audit log entry
+    await prisma.auditLog.create({
+      data: {
+        userId: auth.userId,
+        vaultId: vault.id,
+        action: 'VAULT_CREATED',
+        details: `${auth.name} created vault: ${vault.name}`,
+      },
+    });
+
+    return successResponse({ vault }, 201);
   } catch (error) {
     if (error instanceof ZodError) {
       return errorResponse(
@@ -59,7 +76,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/vaults
- * List all vaults owned by the authenticated user
+ * List all vaults accessible to the authenticated user
  */
 export async function GET(request: NextRequest) {
   try {
@@ -69,40 +86,38 @@ export async function GET(request: NextRequest) {
       return errorResponse('UNAUTHORIZED', 'Not authenticated', 401);
     }
 
-    // Query vaults owned by user
-    const vaults = await prisma.vault.findMany({
+    // Query all vaults where user is a member
+    const vaultUsers = await prisma.vaultUser.findMany({
       where: {
-        ownerId: auth.userId,
+        userId: auth.userId,
       },
       include: {
-        sources: {
-          select: {
-            id: true,
-          },
-        },
-        vaultUsers: {
-          where: {
-            userId: auth.userId,
-          },
-          select: {
-            role: true,
+        vault: {
+          include: {
+            sources: {
+              select: {
+                id: true,
+              },
+            },
           },
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        vault: {
+          createdAt: 'desc',
+        },
       },
     });
 
     // Transform to match frontend interface
-    const transformedVaults = vaults.map((vault) => ({
-      id: vault.id,
-      title: vault.name,
-      description: '',
-      sourceCount: vault.sources.length,
-      userRole: vault.vaultUsers[0]?.role || 'owner',
-      createdAt: vault.createdAt.toISOString(),
-      updatedAt: vault.updatedAt.toISOString(),
+    const transformedVaults = vaultUsers.map((vaultUser) => ({
+      id: vaultUser.vault.id,
+      title: vaultUser.vault.name,
+      description: vaultUser.vault.description || '',
+      sourceCount: vaultUser.vault.sources.length,
+      userRole: vaultUser.role,
+      createdAt: vaultUser.vault.createdAt.toISOString(),
+      updatedAt: vaultUser.vault.updatedAt.toISOString(),
     }));
 
     return successResponse({ vaults: transformedVaults });

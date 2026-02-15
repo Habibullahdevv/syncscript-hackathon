@@ -89,15 +89,16 @@ export default function DashboardPage() {
           <Sidebar />
           <div className="flex-1 p-8">
             <div className="max-w-7xl mx-auto">
-              <h1 className="text-3xl font-bold mb-8">My Vaults</h1>
+              <div className="mb-8 flex items-center justify-between">
+                <h1 className="text-3xl font-bold">My Vaults</h1>
+                <CreateVaultButton />
+              </div>
               <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
                 <h2 className="text-xl font-semibold mb-2">No vaults found</h2>
-                <p className="text-gray-600 mb-4">
-                  You don't have access to any vaults yet.
+                <p className="text-gray-600 mb-6">
+                  Create your first vault to start organizing and sharing sources with your team.
                 </p>
-                <p className="text-sm text-gray-500">
-                  Contact an administrator to get access to vaults.
-                </p>
+                <CreateVaultButton />
               </div>
             </div>
           </div>

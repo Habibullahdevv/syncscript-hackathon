@@ -29,7 +29,9 @@ export const createSourceSchema = z.object({
     .string()
     .min(1, 'Source title is required')
     .max(255, 'Source title must be less than 255 characters'),
-  url: z.string().url('Invalid URL format').optional(),
+  url: z.string().url('Invalid URL format').optional().or(z.literal('')),
+  content: z.string().optional(),
+  tags: z.array(z.string()).optional(),
   annotation: z.string().optional(),
   fileUrl: z.string().url('Invalid file URL format').optional(),
   fileKey: z.string().optional(),
